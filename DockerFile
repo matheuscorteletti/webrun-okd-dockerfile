@@ -1,0 +1,36 @@
+# Utilizando a imagem certificada JWS 5.8 com Java 8 
+FROM registry.redhat.io/jboss-webserver-5/jws58-openjdk8-openshift-rhel8:latest
+
+LABEL maintainer="Equipe de Dev" \
+      summary="Aplicação Maker/Webrun no OpenShift - JWS 5.8 & JDBC 13.2"
+
+# Definição de caminhos para a versão 5.8 
+ENV WEBRUN_SYSTEMS=/home/jboss/softwell/webrun/systems \
+    DEPLOY_DIR=/deployments \
+    TOMCAT_HOME=/opt/jws-5.8/tomcat
+
+USER root
+
+# 1. Limpeza de diretórios e preparação da estrutura Maker 
+RUN rm -rf ${TOMCAT_HOME}/webapps/* && \
+    rm -rf ${DEPLOY_DIR}/* && \
+    mkdir -p ${WEBRUN_SYSTEMS}
+
+# 2. Instalação do Driver JDBC 13.2.0 na lib global do Tomcat 
+COPY mssql-jdbc-13.2.0.jre8.jar ${TOMCAT_HOME}/lib/
+
+# 3. Deploy do motor Webrun e arquivos do sistema 
+COPY ROOT.war ${DEPLOY_DIR}/ROOT.war
+COPY CONSIGLOG_API.wfre ${WEBRUN_SYSTEMS}/
+COPY CONSIGLOG_API.jar ${WEBRUN_SYSTEMS}/
+
+# 4. Ajuste de permissões para compatibilidade com UID aleatório do OpenShift
+RUN chown -R 185:0 ${DEPLOY_DIR} ${WEBRUN_SYSTEMS} ${TOMCAT_HOME}/webapps && \
+    chmod -R g+rwX ${DEPLOY_DIR} ${WEBRUN_SYSTEMS} ${TOMCAT_HOME}/webapps
+
+USER 185
+
+EXPOSE 8080
+
+# Comando de inicialização oficial para JWS 5.8 
+CMD ["/opt/jws-5.8/tomcat/bin/launch.sh"]
